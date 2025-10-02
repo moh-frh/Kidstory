@@ -86,17 +86,43 @@ function StoryPage() {
 
       setStory(storyData.story)
 
-      // Generate single image for the story
+      // Generate cartoon image using GPT-4o vision (similar to ChatGPT's approach)
       try {
-        const imageResponse = await openai.images.generate({
+        const imageResponse = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Convert this photo into a cute cartoon character illustration. Use a children's book style with bold black outlines, flat colors, large expressive eyes, and a friendly smile. Keep the child's unique features (hair, skin tone, clothing) but make it look like a cartoon/animated character. Set against a soft pastel pink background."
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: childPhoto
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 300
+        })
+
+        // GPT-4o doesn't generate images directly, so we need to use DALL-E 3 with the description
+        const cartoonDescription = imageResponse.choices[0].message.content
+        
+        // Now generate with DALL-E 3
+        const dalleResponse = await openai.images.generate({
           model: "dall-e-3",
-          prompt: `Cartoon illustration in a cute children's book style with bold black outlines, flat colors, and simplified features. ${storyData.imagePrompt}. The main character is a ${childGender} child named ${childName} with big expressive eyes, a friendly smile, and a large head (chibi/cartoon proportions). Use vibrant, cheerful colors with clean vector-style art. Simple background with soft pastel colors. The style should be similar to modern kids' apps and educational cartoons - friendly, approachable, and age-appropriate for young children (2-8 years old).`,
+          prompt: `${cartoonDescription}. Create this as a cartoon portrait with thick black outlines, flat colors, large expressive cartoon eyes, simplified features, and a soft pastel pink background. Children's book illustration style.`,
           n: 1,
           size: "1024x1024",
           quality: "standard",
         })
 
-        setStoryImage(imageResponse.data[0].url)
+        setStoryImage(dalleResponse.data[0].url)
       } catch (imgError) {
         console.error('Error generating image:', imgError)
         setStoryImage(null)
