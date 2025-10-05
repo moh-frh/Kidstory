@@ -86,9 +86,10 @@ function StoryPage() {
 
       setStory(storyData.story)
 
-      // Generate cartoon image using GPT-4o vision (similar to ChatGPT's approach)
+      // Step 1: Analyze the photo with GPT-4o to get detailed description
+      let photoDescription = ''
       try {
-        const imageResponse = await openai.chat.completions.create({
+        const visionResponse = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
             {
@@ -96,7 +97,7 @@ function StoryPage() {
               content: [
                 {
                   type: "text",
-                  text: "Convert this photo into a cute cartoon character illustration. Use a children's book style with bold black outlines, flat colors, large expressive eyes, and a friendly smile. Keep the child's unique features (hair, skin tone, clothing) but make it look like a cartoon/animated character. Set against a soft pastel pink background."
+                  text: "Describe this child's appearance in detail for creating a cartoon version: hair color and style, skin tone, facial features, clothing, and expression."
                 },
                 {
                   type: "image_url",
@@ -107,22 +108,27 @@ function StoryPage() {
               ]
             }
           ],
-          max_tokens: 300
+          max_tokens: 200
         })
-
-        // GPT-4o doesn't generate images directly, so we need to use DALL-E 3 with the description
-        const cartoonDescription = imageResponse.choices[0].message.content
         
-        // Now generate with DALL-E 3
-        const dalleResponse = await openai.images.generate({
+        photoDescription = visionResponse.choices[0].message.content
+        console.log('Photo description:', photoDescription)
+      } catch (visionError) {
+        console.error('Error analyzing photo:', visionError)
+        photoDescription = `a ${childGender} child`
+      }
+
+      // Step 2: Generate cartoon using DALL-E 3 (same way ChatGPT does it)
+      try {
+        const imageResponse = await openai.images.generate({
           model: "dall-e-3",
-          prompt: `${cartoonDescription}. Create this as a cartoon portrait with thick black outlines, flat colors, large expressive cartoon eyes, simplified features, and a soft pastel pink background. Children's book illustration style.`,
+          prompt: `Create a cute cartoon illustration of ${photoDescription}. Style: children's book cartoon with thick black outlines, flat bright colors, large expressive eyes, simplified friendly features, and a warm smile. Background: soft pastel pink. The illustration should look like a modern kids' app character or educational cartoon - cheerful, friendly, and age-appropriate.`,
           n: 1,
           size: "1024x1024",
           quality: "standard",
         })
 
-        setStoryImage(dalleResponse.data[0].url)
+        setStoryImage(imageResponse.data[0].url)
       } catch (imgError) {
         console.error('Error generating image:', imgError)
         setStoryImage(null)
